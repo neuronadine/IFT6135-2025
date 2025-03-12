@@ -21,14 +21,18 @@ class Linear(nn.Module):
     """
     def __init__(self, in_features: int, out_features: int) -> None:
         super(Linear, self).__init__()
-        raise NotImplementedError
+        self.weight = torch.nn.Parameter(torch.Tensor(out_features, in_features))
+        self.bias = torch.nn.Parameter(torch.Tensor(out_features))
+        torch.nn.init.xavier_normal_(self.weight)
+        torch.nn.init.zeros_(self.bias)
+    
     
     def forward(self, input):
         """
             :param input: [bsz, in_features]
             :return result [bsz, out_features]
         """
-        raise NotImplementedError
+        return torch.addmm(self.bias, input, self.weight.t())
 
 
 class MLP(torch.nn.Module):
@@ -60,15 +64,28 @@ class MLP(torch.nn.Module):
             hidden_layers: nn.ModuleList. Within the list, each item has type nn.Module
             output_layer: nn.Module
         """
-        raise NotImplementedError
+        hidden_layers = nn.ModuleList()
+        hidden_layers.append(Linear(input_size, hidden_sizes[0]))
+        for i in range(1, len(hidden_sizes)):
+            hidden_layers.append(Linear(hidden_sizes[i-1], hidden_sizes[i]))
+        output_layer = Linear(hidden_sizes[-1], num_classes)
+        return hidden_layers, output_layer
     
     def activation_fn(self, activation, inputs: torch.Tensor) -> torch.Tensor:
         """ process the inputs through different non-linearity function according to activation name """
-        raise NotImplementedError
+        if activation == 'tanh':
+            return torch.tanh(inputs)
+        elif activation == 'relu':
+            return torch.relu(inputs)
+        elif activation == 'sigmoid':
+            return torch.sigmoid(inputs)
+        else:
+            raise ValueError(f"Invalid activation function: {activation}")
         
     def _initialize_linear_layer(self, module: nn.Linear) -> None:
         """ For bias set to zeros. For weights set to glorot normal """
-        raise NotImplementedError
+        torch.nn.init.zeros_(module.bias)
+        torch.nn.init.xavier_normal_(module.weight)
         
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         """ Forward images and compute logits.
@@ -79,4 +96,11 @@ class MLP(torch.nn.Module):
         :param images: [batch, channels, width, height]
         :return logits: [batch, num_classes]
         """
-        raise NotImplementedError
+        # Flatten the images
+        x = images.view(images.size(0), -1)
+        for layer in self.hidden_layers:
+            x = layer(x)
+            x = self.activation_fn(self.activation, x)
+        x = self.output_layer(x)
+        return x
+    
