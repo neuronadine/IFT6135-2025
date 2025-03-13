@@ -61,7 +61,10 @@ def cross_entropy_loss(logits: torch.Tensor, labels: torch.Tensor):
     :param labels: [batch_size]
     :return loss 
     """
-    raise NotImplementedError
+    log_probs = torch.log_softmax(logits, dim=1)
+    correct_log_probs = log_probs[torch.arange(logits.size(0)), labels]
+    loss = -correct_log_probs.mean()
+    return loss
 
 def compute_accuracy(logits: torch.Tensor, labels: torch.Tensor):
     """ Compute the accuracy of the batch """
